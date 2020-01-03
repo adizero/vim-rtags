@@ -1,3 +1,8 @@
+if exists('g:loaded_rtags')
+    finish
+end
+let g:loaded_rtags = 1
+
 if has('nvim') || (has('job') && has('channel'))
     let s:rtagsAsync = 1
     let s:job_cid = 0
@@ -21,6 +26,10 @@ end
 
 if !exists("g:rtagsRcCmd")
     let g:rtagsRcCmd = "rc"
+endif
+
+if !exists("g:rtagsInsertModeCompletion")
+    let g:rtagsInsertModeCompletion = 1
 endif
 
 if !exists("g:rtagsRdmCmd")
@@ -49,6 +58,10 @@ if !exists("g:rtagsUseDefaultMappings")
     let g:rtagsUseDefaultMappings = 1
 endif
 
+if !exists("g:rtagsUseDefaultSpecialMappings")
+    let g:rtagsUseDefaultSpecialMappings = 1
+endif
+
 if !exists("g:rtagsMinCharsForCommandCompletion")
     let g:rtagsMinCharsForCommandCompletion = 4
 endif
@@ -59,7 +72,7 @@ endif
 
 if g:rtagsAutoLaunchRdm
     call system(g:rtagsRcCmd." -w")
-    if v:shell_error != 0 
+    if v:shell_error != 0
         call system(g:rtagsRdmCmd." --daemon > /dev/null")
     end
 end
@@ -76,27 +89,59 @@ let s:LOC_OPEN_OPTS = {
             \ g:NEW_TAB : 'tab'
             \ }
 
+function! rtags#IsRdmRunning()
+    call system(g:rtagsRcCmd.' -w')
+    if v:shell_error != 0
+        echohl WarningMsg
+        echomsg 'Rtags database manager (rdm) is not running'
+        echohl None
+        return 0
+    end
+    return 1
+endfunction
+
+function! rtags#Help()
+    " show all <Leader>r* bindings
+    execute 'map <Leader>r'
+endfunction
+
+function! rtags#CreateMapping(mapping, command)
+    execute 'nnoremap ' . a:mapping . ' ' . ':' . 'if rtags#IsRdmRunning() \| call ' . a:command . ' \| endif<CR>'
+endfunction
+
 if g:rtagsUseDefaultMappings == 1
-    noremap <Leader>ri :call rtags#SymbolInfo()<CR>
-    noremap <Leader>rj :call rtags#JumpTo(g:SAME_WINDOW)<CR>
-    noremap <Leader>rJ :call rtags#JumpTo(g:SAME_WINDOW, { '--declaration-only' : '' })<CR>
-    noremap <Leader>rS :call rtags#JumpTo(g:H_SPLIT)<CR>
-    noremap <Leader>rV :call rtags#JumpTo(g:V_SPLIT)<CR>
-    noremap <Leader>rT :call rtags#JumpTo(g:NEW_TAB)<CR>
-    noremap <Leader>rp :call rtags#JumpToParent()<CR>
-    noremap <Leader>rf :call rtags#FindRefs()<CR>
-    noremap <Leader>rF :call rtags#FindRefsCallTree()<CR>
-    noremap <Leader>rn :call rtags#FindRefsByName(input("Pattern? ", "", "customlist,rtags#CompleteSymbols"))<CR>
-    noremap <Leader>rs :call rtags#FindSymbols(input("Pattern? ", "", "customlist,rtags#CompleteSymbols"))<CR>
-    noremap <Leader>rr :call rtags#ReindexFile()<CR>
-    noremap <Leader>rl :call rtags#ProjectList()<CR>
-    noremap <Leader>rw :call rtags#RenameSymbolUnderCursor()<CR>
-    noremap <Leader>rv :call rtags#FindVirtuals()<CR>
-    noremap <Leader>rb :call rtags#JumpBack()<CR>
-    noremap <Leader>rh :call rtags#ShowHierarchy()<CR>
-    noremap <Leader>rC :call rtags#FindSuperClasses()<CR>
-    noremap <Leader>rc :call rtags#FindSubClasses()<CR>
-    noremap <Leader>rd :call rtags#Diagnostics()<CR>
+    " nnoremap <Leader>r? :if rtags#IsRdmRunning() \| call rtags#SymbolInfo() \| endif<CR>
+    call rtags#CreateMapping('<Leader>r?', 'rtags#SymbolInfo()')
+    call rtags#CreateMapping('<Leader>ri', 'rtags#AddIncludeForSymbolUnderCursor()')
+    call rtags#CreateMapping('<Leader>rI', 'rtags#RemoveSuperfluousIncludesFromFile()')
+    call rtags#CreateMapping('<Leader>rj', 'rtags#JumpTo(g:SAME_WINDOW)')
+    call rtags#CreateMapping('<Leader>rJ', "rtags#JumpTo(g:SAME_WINDOW, { '--declaration-only' : '' })")
+    call rtags#CreateMapping('<Leader>rS', 'rtags#JumpTo(g:H_SPLIT)')
+    call rtags#CreateMapping('<Leader>rV', 'rtags#JumpTo(g:V_SPLIT)')
+    call rtags#CreateMapping('<Leader>rT', 'rtags#JumpTo(g:NEW_TAB)')
+    call rtags#CreateMapping('<Leader>rp', 'rtags#JumpToParent()')
+    call rtags#CreateMapping('<Leader>rf', 'rtags#FindRefs()')
+    call rtags#CreateMapping('<Leader>rF', 'rtags#FindRefsCallTree()')
+    call rtags#CreateMapping('<Leader>rn', 'rtags#FindRefsByName(input("Pattern? ", "", "customlist,rtags#CompleteSymbols"))')
+    call rtags#CreateMapping('<Leader>rs', 'rtags#FindSymbols(input("Pattern? ", "", "customlist,rtags#CompleteSymbols"))')
+    call rtags#CreateMapping('<Leader>rr', 'rtags#ReindexFile()')
+    call rtags#CreateMapping('<Leader>rl', 'rtags#ProjectList()')
+    call rtags#CreateMapping('<Leader>rw', 'rtags#RenameSymbolUnderCursor()')
+    call rtags#CreateMapping('<Leader>rv', 'rtags#FindVirtuals()')
+    call rtags#CreateMapping('<Leader>rb', 'rtags#JumpBack()')
+    call rtags#CreateMapping('<Leader>rh', 'rtags#ShowHierarchy()')
+    call rtags#CreateMapping('<Leader>rC', 'rtags#FindSuperClasses()')
+    call rtags#CreateMapping('<Leader>rc', 'rtags#FindSubClasses()')
+    call rtags#CreateMapping('<Leader>rd', 'rtags#Diagnostics()')
+    call rtags#CreateMapping('<Leader>r', 'rtags#Help()')
+endif
+
+if g:rtagsUseDefaultSpecialMappings == 1
+    call rtags#CreateMapping('<C-S-Right>', 'rtags#JumpTo(g:SAME_WINDOW)')
+    call rtags#CreateMapping('<C-S-Left>', 'rtags#JumpBack()')
+    " call rtags#CreateMapping('g<LeftMouse> ', 'rtags#JumpTo(g:SAME_WINDOW)') " this has issues <LeftMouse> needs to be first and not nested within the if
+    nnoremap g<LeftMouse> <LeftMouse>:if rtags#IsRdmRunning() \| call rtags#JumpTo(g:SAME_WINDOW) \| endif<CR>
+    call rtags#CreateMapping('g<RightMouse> ', 'rtags#JumpBack()')
 endif
 
 let s:script_folder_path = escape( expand( '<sfile>:p:h' ), '\' )
@@ -133,14 +178,14 @@ function! rtags#ExecuteRC(args)
 
     " Give rdm unsaved file content, so that you don't have to save files
     " before each rc invocation.
-    if exists('b:rtags_sent_content')
-        let content = join(getline(1, line('$')), "\n")
-        if b:rtags_sent_content != content
-            let unsaved_content = content
-        endif
-    elseif &modified
+    "" if exists('b:rtags_sent_content')
+    ""     let content = join(getline(1, line('$')), "\n")
+    ""     if b:rtags_sent_content != content
+    ""         let unsaved_content = content
+    ""     endif
+    "" elseif &modified
         let unsaved_content = join(getline(1, line('$')), "\n")
-    endif
+    "" endif
     if exists('unsaved_content')
         let filename = expand("%")
         let output = system(printf("%s --unsaved-file=%s:%s -V %s", cmd, filename, strlen(unsaved_content), filename), unsaved_content)
@@ -148,12 +193,19 @@ function! rtags#ExecuteRC(args)
     endif
 
     " prepare for the actual command invocation
+    let l:filtering = ''
     for [key, value] in items(a:args)
-        let cmd .= " ".key
-        if len(value) > 1
-            let cmd .= " ".value
+        if key[0] !=# '|'
+            let cmd .= " ".key
+            if len(value) > 1
+                let cmd .= " ".value
+            endif
+        else
+            let l:filtering = key
         endif
     endfor
+    let cmd .= l:filtering
+    " echohl WarningMsg | echomsg 'Executing... ' . cmd | echohl None
 
     let output = system(cmd)
     if v:shell_error && len(output) > 0
@@ -170,6 +222,97 @@ endfunction
 
 function! rtags#CreateProject()
 
+endfunction
+
+function! s:EntryOrder(first, second)
+    if a:first.filepath < a:second.filepath
+        return -1
+    elseif a:first.filepath > a:second.filepath
+        return 1
+    else
+        if str2nr(a:first.lnum) < str2nr(a:second.lnum)
+            return -1
+        elseif str2nr(a:first.lnum) > str2nr(a:second.lnum)
+            return 1
+        else
+            if str2nr(a:first.col) < str2nr(a:second.col)
+                return -1
+            elseif str2nr(a:first.col) > str2nr(a:second.col)
+                return 1
+            endif
+        endif
+    endif
+endfunction
+
+function! s:ReverseIntOrder(first, second)
+    if a:first < a:second
+        return 1
+    elseif a:first > a:second
+        return -1
+    endif
+    return 0
+endfunction
+
+function! s:AddFunctionOrClassOrNamespaceToSymbolReference(rest)
+    " TODO improve, now the separator is simply <space>function:<space> - could collide with code comments or something
+    let [l:text; l:f_location] = split(a:rest, '\s\+function: ')
+    if empty(l:f_location)
+        if l:text ==# ''
+            return a:rest
+        endif
+        return l:text
+    endif
+
+    let [l:f_file, l:f_lnum, l:f_col] = rtags#parseSourceLocation(l:f_location[0])
+
+    " TODO for now only sync exec !!!
+    let l:args = {
+                \ '-U' : l:f_location[0] }
+    let l:f_text = ''
+    let l:result = rtags#ExecuteRC(l:args)
+    for l:result_line in l:result
+        if match(l:result_line, 'SymbolName:') >= 0
+            let l:f_text = l:result_line
+            break
+        endif
+    endfor
+    if l:f_text !=# ''
+        let l:f_text = substitute(l:f_text, 'SymbolName: ', '', '')
+        if match(l:f_text, 'class\|namespace\|struct') != 0
+            let l:start_pos = 0
+            while 1
+                " echomsg l:f_text[l:start_pos:]
+                let [l:str, l:start_pos, l:end_pos] = matchstrpos(l:f_text, '[A-Za-z_:]\+', l:start_pos)
+                " echomsg l:str
+                if l:start_pos < 0
+                    break
+                else
+                    if match(l:str, ':operator\|^operator') >= 0
+                        let l:pos = match(l:f_text, '(', l:end_pos)
+                        if l:pos >= l:end_pos
+                            if l:pos == l:end_pos
+                                " exception for operator()
+                                let l:pos = l:pos + 2
+                            endif
+                            let l:f_text = l:f_text[l:start_pos : l:pos - 1]
+                            break
+                        endif
+                    elseif l:f_text[l:end_pos] ==# '('
+                        let l:f_text = l:f_text[l:start_pos : l:end_pos - 1]
+                        break
+                    endif
+                endif
+                let l:start_pos = l:end_pos
+            endwhile
+        endif
+        let l:f_text = '<<' . l:f_text . '>>'
+    endif
+
+    if l:f_text !=# ''
+        return l:f_text . ' ' . l:text
+    else
+        return l:text
+    endif
 endfunction
 
 "
@@ -192,13 +335,14 @@ function! rtags#ParseResults(results)
         let entry.col = col
         let entry.vcol = 0
         "        let entry.nr = nr
-        let entry.text = join(rest, ' ')
+        let entry.text =  s:AddFunctionOrClassOrNamespaceToSymbolReference(join(rest, ' '))
         let entry.type = 'ref'
 
         call add(locations, entry)
 
         let nr = nr + 1
     endfor
+    call sort(locations, 's:EntryOrder')
     return locations
 endfunction
 
@@ -211,7 +355,7 @@ endfunction
 "
 " Superclasses:
 "   class Foo src/Foo.h:56:7: class Foo : public Bar {
-"     class Bar	src/Bar.h:46:7:	class Bar : public Bas {
+"     class Bar src/Bar.h:46:7: class Bar : public Bas {
 "       class Bas src/Bas.h:47:7: class Bas {
 " Subclasses:
 "   class Foo src/Foo.h:56:7: class Foo : public Bar {
@@ -246,7 +390,7 @@ endfunction
 "
 " Superclasses:
 "   class Foo src/Foo.h:56:7: class Foo : public Bar {
-"     class Bar	src/Bar.h:46:7:	class Bar : public Bas {
+"     class Bar src/Bar.h:46:7: class Bar : public Bas {
 "       class Bas src/Bas.h:47:7: class Bas {
 " Subclasses:
 "   class Foo src/Foo.h:56:7: class Foo : public Bar {
@@ -318,6 +462,7 @@ function! rtags#ViewReferences(results)
     setlocal bufhidden=delete
     setlocal nowrap
     setlocal tw=0
+    set ft=qf
 
     iabc <buffer>
 
@@ -332,8 +477,12 @@ function! rtags#ViewReferences(results)
 
     let cpo_save = &cpo
     set cpo&vim
-    nnoremap <buffer> <cr> :call <SID>OpenReference()<cr>
-    nnoremap <buffer> o    :call <SID>ExpandReferences()<cr>
+    nmap <buffer> <2-LeftMouse> <CR>
+    nnoremap <buffer> p :call <SID>OpenReference(1)<cr>
+    nnoremap <buffer> <cr> :call <SID>OpenReference(0)<cr>
+    nnoremap <buffer> o :call <SID>ExpandReferences()<cr>
+    nnoremap <buffer> <F11> :normal k<cr>:call <SID>OpenReference(1)<cr>
+    nnoremap <buffer> <F12> :normal j<cr>:call <SID>OpenReference(1)<cr>
     let &cpo = cpo_save
 endfunction
 
@@ -341,41 +490,85 @@ endfunction
 " Expands the callers of the reference on the current line.
 "
 function! s:ExpandReferences() " <<<
+    let l:saved_cursor = getcurpos()
     let ln = line(".")
     let l = getline(ln)
 
-    " Detect expandable region
-    let nr = matchlist(l, '#\([0-9]\+\)$')[1]
-    if !empty(b:rtagsLocations[nr].source)
-        let location = b:rtagsLocations[nr].source
-        let b:rtagsLocations[nr].source = ''
-        let args = {
-                \ '--containing-function-location' : '',
-                \ '-r' : location }
-        call rtags#ExecuteThen(args, [[function('rtags#AddReferences'), nr]])
-    endif
+    let l:nr = ln - 1
+    let entry = b:rtagsLocations[l:nr]
+    " for entry in b:rtagsLocations
+    "    if entry.shown_text ==# l
+            if entry.expanded == 0
+                if !empty(entry.source)
+                    let entry.expanded = 1
+                    let location = entry.source
+                    let args = {
+                            \ '--containing-function-location' : '',
+                            \ '-r' : location }
+                    call rtags#ExecuteThen(args, [[function('rtags#AddReferences'), l:nr]])
+                endif
+            else
+                let entry.expanded = 0
+                " TODO remove below entries, where depth > current depth
+                let l:current_depth = entry.depth
+                let l:i = l:nr + 1
+                setlocal modifiable
+                while l:i < len(b:rtagsLocations)
+                    " echomsg b:rtagsLocations[l:i].shown_text
+                    if b:rtagsLocations[l:i].depth > l:current_depth
+                        call remove(b:rtagsLocations, l:i)
+                        execute ':' . string(l:i + 1) . 'd'
+                    else
+                        break
+                    endif
+                endwhile
+                setlocal nomodifiable
+            endif
+    "        break
+    "     endif
+    "     let l:nr = l:nr + 1
+    " endfor
+    call setpos('.', l:saved_cursor)
+    redraw
+    " echomsg "restoring..." . l:saved_cursor[1] . ':' . l:saved_cursor[2]
 endfunction " >>>
 
 "
-" Opens the reference for viewing in the window below.
+" Opens the reference for viewing in the previous window.
 "
-function! s:OpenReference() " <<<
+function! s:OpenReference(preview) " <<<
     let ln = line(".")
     let l = getline(ln)
 
-    " Detect openable region
-    let nr = matchlist(l, '#\([0-9]\+\)$')[1]
-    if !empty(nr)
-        let jump_file = b:rtagsLocations[nr].filename
-        let lnum = b:rtagsLocations[nr].lnum
-        let col = b:rtagsLocations[nr].col
-        wincmd j
-        " Add location to the jumplist
-        normal m'
-        if rtags#jumpToLocation(jump_file, lnum, col)
-            normal zz
-        endif
-    endif
+    let l:nr = ln - 1
+    let entry = b:rtagsLocations[l:nr]
+    " for entry in b:rtagsLocations
+    "     if entry.shown_text ==# l
+            let jump_file = entry.filename
+            let lnum = entry.lnum
+            let col = entry.col
+            wincmd p
+            " Add location to the jumplist
+            normal m'
+            if rtags#jumpToLocation(jump_file, lnum, col)
+                normal zz
+            endif
+
+            if a:preview == 1
+                if has('autocmd')
+                    let b:cursorline = &cursorline
+                    let &cursorline = 1
+                    augroup RTagsCallHierarchyBrowsing
+                        autocmd! * <buffer>
+                        autocmd WinEnter <buffer> let &cursorline = b:cursorline | autocmd! RTagsCallHierarchyBrowsing
+                    augroup END
+                endif
+
+                wincmd p
+            endif
+    "         break
+    "     endif
+    " endfor
 endfunction " >>>
 
 "
@@ -387,14 +580,16 @@ endfunction " >>>
 "
 " Format of each line: <path>,<line>\s<text>\sfunction: <caller path>
 function! rtags#AddReferences(results, i)
-    let ln = line(".")
+    let l:saved_cursor = getcurpos()
+    " let ln = line(".")
     let nr = len(b:rtagsLocations)
     let depth = 0
     if a:i >= 0
         let depth = b:rtagsLocations[a:i].depth + 1
-        silent execute "normal! gg/#".a:i."$\<cr>"
+        " silent execute "normal! gg/#".a:i."$\<cr>"
     endif
     let prefix = repeat(" ", depth * 2)
+    let l:new_locations=[]
     setlocal modifiable
     for record in a:results
         let [line; sourcefunc] = split(record, '\s\+function: ')
@@ -406,18 +601,33 @@ function! rtags#AddReferences(results, i)
         let entry.lnum = lnum
         let entry.col = col
         let entry.vcol = 0
-        let entry.text = join(rest, ' ')
+        let entry.text =  s:AddFunctionOrClassOrNamespaceToSymbolReference(join(rest, ' ') . ' function: ' . join(sourcefunc, ''))
         let entry.type = 'ref'
         let entry.depth = depth
         let entry.source = matchstr(sourcefunc, '[^\s]\+')
-        " TODO Hide the index number of the entry - this is an implementation
-        " detail that shouldn't be visible to the user.
-        silent execute "normal! A\<cr>\<esc>i".prefix . substitute(entry.filename, '.*/', '', 'g').':'.entry.lnum.' '.entry.text.' #'.nr."\<esc>"
-        call add(b:rtagsLocations, entry)
+        let entry.expanded = 0
+        let entry.nr = nr
+        let entry.shown_text = prefix . substitute(entry.filename, '.*/', '', 'g').':'.entry.lnum.' '.entry.text
+        call add(l:new_locations, entry)
         let nr = nr + 1
     endfor
+    call sort(l:new_locations, 's:EntryOrder')
+    let l:i = a:i
+    for entry in l:new_locations
+        " TODO Hide the index number of the entry - this is an implementation
+        " detail that shouldn't be visible to the user.
+        silent execute "normal! A\<cr>\<esc>i".entry.shown_text."\<esc>"
+        if a:i < 0
+            call add(b:rtagsLocations, entry)
+        else
+            call insert(b:rtagsLocations, entry, l:i + 1)
+        endif
+        let l:i = l:i + 1
+    endfor
     setlocal nomodifiable
-    exec (":" . ln)
+    " exec (":" . ln)
+    call setpos('.', l:saved_cursor)
+    redraw
 endfunction
 
 " Creates a viewer for hierarachy results
@@ -487,10 +697,276 @@ endfunction
 
 function! rtags#SymbolInfoHandler(output)
     echo join(a:output, "\n")
+    " TODO rework to preview window style instead of waiting for char input???
+    " call getchar()
 endfunction
 
 function! rtags#SymbolInfo()
-    call rtags#ExecuteThen({ '-U' : rtags#getCurrentLocation() }, [function('rtags#SymbolInfoHandler')])
+    call rtags#ExecuteNow({ '-U' : rtags#getCurrentLocation() }, [function('rtags#SymbolInfoHandler')])
+endfunction
+
+function! rtags#IncludeFileHandler(output, args)
+    let l:symbol = a:args['symbol']
+    let l:project_dir = a:args['project_dir']
+    " echo join(a:output, "\n")
+    "
+    " prepare list of all include dirs
+    let l:include_dirs = []
+
+    let l:flag_output = rtags#ExecuteNow({ '--compilation-flags-only' : '', '--sources' : expand('%:p') }, [])
+    for l:flag_line in l:flag_output
+        let l:flag_line = substitute(l:flag_line, '-I ', '-I', 'g')
+        let l:flag_line = substitute(l:flag_line, '-isystem ', '-isystem', 'g')
+        " echomsg 'flag_line: ' . l:flag_line
+        let l:flags = split(l:flag_line, ' ')
+        for l:flag in l:flags
+            let l:matchend = matchend(l:flag, '\C-I\|\C-isystem')
+            if l:matchend > 0
+                let l:dir = l:flag[l:matchend :]
+                " resolve potential ./.. and similar things in path (transform to absolute path)
+                let l:dir = fnamemodify(l:dir, ':p')
+                call add(l:include_dirs, l:dir)
+            endif
+        endfor
+    endfor
+    " add main project dir if no include paths were specified
+    if len(l:include_dirs) == 0
+        let l:dir = fnamemodify(l:project_dir, ':p')
+        call add(l:include_dirs, l:dir)
+    endif
+    " also add implicit directories (like current one)
+    let l:current_dir = expand('%:p:h')
+    " only do l:current_dir matching as last resort
+
+    let l:candidate_list = []
+    for l:line in a:output
+        " skip class methods and constructors
+        if match(l:line, '\sCXXMethod$\|\sCXXConstructor$') >= 0
+            continue
+        endif
+        " skip forward class declarations of the searched symbol (search symbol is a class name in this case)
+        if match(l:line, '\sClassDecl$') >= 0
+            if match(l:line, 'class\s*' . l:symbol . '\s*;') >= 0
+                continue
+            endif
+        elseif match(l:line, '\sStructDecl$') >= 0
+            if match(l:line, 'struct\s*' . l:symbol . '\s*;') >= 0
+                continue
+            endif
+        endif
+        " cut everything after first colon (there must be a colon after filename)
+        let l:first_colon = match(l:line, ':')
+        if l:first_colon > 0
+            let l:cut = l:line[: l:first_colon-1]
+            " skip non header files (.c, .cc, .cpp, ... source files)
+            if match(l:cut, '\.c.*$') >= 0
+                continue
+            endif
+
+            " strip based on include directories (instead of just project dir)
+            let l:longest_match = -1
+            let l:dir = ''
+            for l:include_dir in l:include_dirs
+                " make all include dirs end with the trailing slash
+                if l:include_dir[len(l:include_dir)-1] !=# '/'
+                    let l:include_dir = l:include_dir . '/'
+                endif
+                let l:matchend = matchend(l:cut, '^' . l:include_dir)
+                if l:matchend >= 0
+                    if l:matchend > l:longest_match
+                        let l:longest_match = l:matchend
+                        let l:dir = l:include_dir
+                    endif
+                endif
+            endfor
+
+            " last resort current dir match (to not prefer these)
+            if l:longest_match < 0
+                let l:matchend = matchend(l:cut, '^' . l:current_dir)
+                if l:matchend >= 0
+                    " if l:matchend > l:longest_match
+                        let l:longest_match = l:matchend
+                        let l:dir = l:include_dir
+                    " endif
+                else
+                    " no prefix match at all - ignore this full path (all include paths are usually relative to some -isystem or -I folder)
+                    continue
+                endif
+            endif
+
+            " strip dir prefix (the longest matching include dir)
+            let l:matchend = matchend(l:cut, '^' . l:dir)
+            if l:matchend >= 0
+                let l:cut = l:cut[l:matchend :]
+            endif
+
+            " wrap in quotes or brackets
+            " TODO(akocis): separate system and non-system header in a better way (maybe based on stripped prefix -isystem vs -I ?)
+            let l:brackets = 1
+            if match(l:cut, '\.h.*$') >= 0
+                let l:brackets = 0
+            endif
+            let l:cut = (l:brackets ? '<' : '"') . l:cut . (l:brackets ? '>' : '"')
+            " add to candidate list
+            call add(l:candidate_list, l:cut)
+        endif
+    endfor
+    " echo join(l:candidate_list, "\n")
+    call vimrc#CodeIncludeOfferCandidates(l:symbol, l:candidate_list)
+endfunction
+
+function! rtags#AddIncludeForSymbol(symbol)
+    " let l:filter_unwanted_clang_cursor_types = ''
+    " let l:filter_unwanted_clang_cursor_types = '| grep -e "-\*- C++ -\*-$" -e ClassTemplate$ -e FunctionTemplate$ -e ClassDecl$ -e CXXMethod$ -e TypedefDecl$ -e StructDecl$ -e FunctionDecl$ -e "macro definition$"'
+    let l:filter_unwanted_clang_cursor_types = '| grep -e "-\*- C++ -\*-$" -e ClassTemplate$ -e FunctionTemplate$ -e ClassDecl$ -e TypeAliasDecl$ -e TypedefDecl$ -e StructDecl$ -e FunctionDecl$ -e "macro definition$"'
+    let l:args = {
+                \ '-F' : a:symbol,
+                \ '-G' : '',
+                \ '--cursor-kind' : '',
+                \ l:filter_unwanted_clang_cursor_types : '' }
+
+    let l:output = rtags#ExecuteNow({ '--current-project' : '' }, [])
+    let l:project_dir = ''
+    if len(l:output) > 0
+        let l:project_dir = l:output[0]
+    endif
+    call rtags#ExecuteNow(l:args, [[function('rtags#IncludeFileHandler'), { 'symbol' : a:symbol, 'project_dir' : l:project_dir }]])
+endfunction
+
+function! rtags#AddIncludeForSymbolUnderCursor()
+    let l:WORDUnderCursor = expand('<cWORD>')
+    let l:wordUnderCursor = expand('<cword>')
+    " TODO improve namespaces and class support (maybe include :: into cword for expand call execution)
+    return rtags#AddIncludeForSymbol(l:wordUnderCursor)
+endfunction
+
+function! rtags#RemoveIncludesHandler(output, args)
+    let l:tmp_file = a:args['tmp_file']
+    let l:current_file = a:args['current_file']
+    let l:project_dir = a:args['project_dir']
+    " echo join(a:output, "\n")
+
+    " prepare map of include lines -> line no in current file
+    let l:total = line('$')
+    let l:i = 1
+    let l:include_map = {}
+    while l:i < l:total
+        let l:current_line = getline(l:i)
+        if l:current_line =~# '^\s*#include'
+            let l:includeend = matchend(l:current_line, '#include\s*')
+            if l:includeend >= 0
+                let l:include_path = l:current_line[l:includeend :]
+            else
+                let l:include_path = l:current_line
+            endif
+            if l:include_path[0] ==# '"' || l:include_path[0] ==# '<'
+                let l:include_path = l:include_path[1:]
+            endif
+            let l:length = len(l:include_path)
+            if l:include_path[l:length-1] ==# '"' || l:include_path[l:length-1] ==# '>'
+                let l:include_path = l:include_path[:l:length-2]
+            endif
+            let l:include_map[l:include_path] = l:i
+            " echomsg 'include:' . l:include_path
+        endif
+        let l:i = l:i + 1
+    endwhile
+
+    let l:candidate_list = []
+    for l:line in a:output
+        " skip superfluous includes in other files than current one
+        if match(l:line, l:tmp_file) < 0
+            continue
+        endif
+        " skip error other than those the have 'for no reason' at the end of the line
+        if match(l:line, 'for no reason$') < 0
+            continue
+        endif
+
+        " cut everything after first colon (there must be a colon after filename)
+        let l:includes_pos = match(l:line, '\sincludes\s.*\sfor no reason$')
+        if l:includes_pos > 0
+            let l:cut = l:line[l:includes_pos - 1 :]
+            " strip includes prefix
+            let l:matchend = matchend(l:cut, '\sincludes\s')
+            if l:matchend >= 0
+                let l:cut = l:cut[l:matchend :]
+            endif
+            " strip for not reason suffix
+            let l:matchstart = match(l:cut, '\sfor no reason$')
+            if l:matchstart > 0
+                let l:cut = l:cut[: l:matchstart - 1]
+            endif
+
+            " now try to remove project / clang system from the include to be able to remove the #include line itself from the buffer
+            "" let l:no_prefix = substitute(l:cut, '^' . l:project_dir, '', '')
+            while !has_key(l:include_map, l:cut)
+                " cuts the path from the from and tries to match in the include_map
+                let l:slashend = matchend(l:cut, '/')
+                if l:slashend >= 0
+                    let l:cut = l:cut[l:slashend :]
+                else
+                    break
+                endif
+            endwhile
+
+            if has_key(l:include_map, l:cut)
+                " add to candidate list
+                call add(l:candidate_list, l:include_map[l:cut])
+            endif
+        endif
+    endfor
+    " echo join(l:candidate_list, "\n")
+    call sort(l:candidate_list, 's:ReverseIntOrder')
+    for l:lineno in l:candidate_list
+        let l:old_line = getline(l:lineno)
+
+        " remove the include line from buffer
+        execute l:lineno . 'delete _'
+
+        echohl ModeMsg
+        echomsg 'Removed superfluous include from line ' . string(l:lineno) . ': ' . l:old_line
+        echohl None
+    endfor
+endfunction
+
+function! rtags#RemoveSuperfluousIncludesFromFile()
+    "" " save current buffer in tmp_file (rc does not work with --check-inludes on unsaved buffer, it does however work for other commands)
+    "" " this also has problems with reindexing the temp file (would require correctly updating compile_commands.json and it is not worth it)
+    "" let l:tempname = tempname()
+    "" let l:tempdir = fnamemodify(l:tempname, ':p:h')
+    "" let l:tmp_file = l:tempdir . '/' . expand('%:p:t')
+    "" " this does not trigger buffer write autocmds (like linting)
+    "" call writefile(getline(1,'$'), l:tmp_file, 'b')
+
+    "" echomsg l:tmp_file
+    "" let l:output = rtags#ExecuteNow({ '--reindex' : l:tmp_file }, [])
+
+    if &modified
+        echohl ModeMsg
+        echomsg 'File has unsaved changes - these will be ignored when searching for superfluous includes'
+        echohl None
+    endif
+
+    let l:extension = expand('%:e')
+    if len(l:extension) == 0 || l:extension =~? 'h.*'
+        echohl ModeMsg
+        echomsg 'File looks to be a header file - check will not work, because it is based on compilation database (that does not include header files)'
+        echohl None
+    endif
+
+    let l:current_file = expand('%:p')
+    let l:tmp_file = l:current_file
+
+    let l:args = {
+                \ '--check-includes' : l:current_file }
+
+    let l:output = rtags#ExecuteNow({ '--current-project' : '' }, [])
+    let l:project_dir = ''
+    if len(l:output) > 0
+        let l:project_dir = l:output[0]
+    endif
+    call rtags#ExecuteNow(l:args, [[function('rtags#RemoveIncludesHandler'), { 'tmp_file' : l:tmp_file, 'current_file' : l:current_file, 'project_dir' : l:project_dir }]])
 endfunction
 
 function! rtags#cloneCurrentBuffer(type)
@@ -586,7 +1062,7 @@ function! rtags#saveLocation()
 endfunction
 
 function! rtags#pushToStack(location)
-    let jumpListLen = len(g:rtagsJumpStack) 
+    let jumpListLen = len(g:rtagsJumpStack)
     if jumpListLen > g:rtagsJumpStackMaxSize
         call remove(g:rtagsJumpStack, 0)
     endif
@@ -652,6 +1128,9 @@ function! rtags#RenameSymbolUnderCursorHandler(output)
                 redraw
                 let choice = yesToAll
                 if choice == 0
+                    " TODO rework to make it work with airline on newly opened buffers somehow!!!!
+                    " call getchar()
+
                     let location = loc.filepath.":".loc.lnum.":".loc.col
                     let choices = "&Yes\nYes to &All\n&No\n&Cancel"
                     let choice = confirm("Rename symbol at ".location, choices)
@@ -681,7 +1160,7 @@ function! rtags#RenameSymbolUnderCursor()
                 \ '-r' : rtags#getCurrentLocation(),
                 \ '--rename' : '' }
 
-    call rtags#ExecuteThen(args, [function('rtags#RenameSymbolUnderCursorHandler')])
+    call rtags#ExecuteNow(args, [function('rtags#RenameSymbolUnderCursorHandler')])
 endfunction
 
 function! rtags#TempFile(job_cid)
@@ -770,7 +1249,7 @@ function! rtags#ExecuteHandlers(output, handlers)
         if type(Handler) == 3
             let HandlerFunc = Handler[0]
             let args = Handler[1]
-            call HandlerFunc(result, args)
+            let result = HandlerFunc(result, args)
         else
             try
                 let result = Handler(result)
@@ -779,21 +1258,31 @@ function! rtags#ExecuteHandlers(output, handlers)
                 return
             endtry
         endif
-    endfor 
+    endfor
+    return result
+endfunction
+
+function! rtags#ExecuteNow(args, handlers)
+    let l:result = rtags#ExecuteRC(a:args)
+    if len(a:handlers) > 0
+        return rtags#ExecuteHandlers(l:result, a:handlers)
+    else
+        return l:result
+    endif
 endfunction
 
 function! rtags#ExecuteThen(args, handlers)
     if s:rtagsAsync == 1
         call rtags#ExecuteRCAsync(a:args, a:handlers)
     else
-        let result = rtags#ExecuteRC(a:args)
-        call rtags#ExecuteHandlers(result, a:handlers)
+        call rtags#ExecuteNow(a:args, a:handlers)
     endif
 endfunction
 
 function! rtags#FindRefs()
     let args = {
                 \ '-e' : '',
+                \ '--containing-function-location' : '',
                 \ '-r' : rtags#getCurrentLocation() }
 
     call rtags#ExecuteThen(args, [function('rtags#DisplayResults')])
@@ -868,12 +1357,26 @@ function! rtags#FindSymbols(pattern)
     call rtags#ExecuteThen(args, [function('rtags#DisplayResults')])
 endfunction
 
+function! rtags#CompleteSymbolsFilter(results)
+    let l:extracted = []
+    for l:line in a:results
+        let l:pos = match(l:line, '(')
+        if l:pos < 0
+            call add(l:extracted, l:line)
+        endif
+    endfor
+    " for l:line in l:extracted
+    "   echomsg l:line
+    " endfor
+    return l:extracted
+endfunction
+
 " Method for tab-completion for vim's commands
 function! rtags#CompleteSymbols(arg, line, pos)
     if len(a:arg) < g:rtagsMinCharsForCommandCompletion
         return []
     endif
-    call rtags#ExecuteThen({ '-S' : a:arg }, [function('filter')])
+    return rtags#ExecuteNow({ '-S' : a:arg }, [function('rtags#CompleteSymbolsFilter')])
 endfunction
 
 " case insensitive FindSymbol
@@ -945,7 +1448,7 @@ function! rtags#CompleteAtCursor(wordStart, base)
     let flags = "--synchronous-completions -l"
     let file = expand("%:p")
     let pos = getpos('.')
-    let line = pos[1] 
+    let line = pos[1]
     let col = pos[2]
 
     if index(['.', '::', '->'], a:base) != -1
@@ -990,7 +1493,7 @@ function! s:Pyeval( eval_string )
       return pyeval( a:eval_string )
   endif
 endfunction
-    
+
 function! s:RcExecuteJobCompletion()
     call rtags#SetJobStateFinish()
     if ! empty(b:rtags_state['stdout']) && mode() == 'i'
@@ -1120,7 +1623,7 @@ endf
 "     - invoke completion through rc
 "     - filter out options that start with meth (in this case).
 "     - show completion options
-" 
+"
 "     Reason: rtags returns all options regardless of already type method name
 "     portion
 """
@@ -1150,8 +1653,10 @@ function! s:RtagsCompleteFunc(findstart, base, async)
     endif
 endfunction
 
-if &completefunc == ""
-    set completefunc=RtagsCompleteFunc
+if g:rtagsInsertModeCompletion == 1
+    if &completefunc == ""
+        set completefunc=RtagsCompleteFunc
+    endif
 endif
 
 " Helpers to access script locals for unit testing {{{
@@ -1172,8 +1677,8 @@ command! -nargs=1 -complete=customlist,rtags#CompleteSymbols RtagsFindRefsByName
 command! -nargs=1 -complete=customlist,rtags#CompleteSymbols RtagsIFindSymbols call rtags#IFindSymbols(<q-args>)
 command! -nargs=1 -complete=customlist,rtags#CompleteSymbols RtagsIFindRefsByName call rtags#IFindRefsByName(<q-args>)
 
-command! -nargs=1 -complete=dir RtagsLoadCompilationDb call rtags#LoadCompilationDb(<q-args>)
+" command! -nargs=1 -complete=dir RtagsLoadCompilationDb call rtags#LoadCompilationDb(<q-args>)
 
 " The most commonly used find operation
-command! -nargs=1 -complete=customlist,rtags#CompleteSymbols Rtag RtagsIFindSymbols <q-args>
+command! -nargs=1 -complete=customlist,rtags#CompleteSymbols Rtag RtagsIFindSymbols <args>
 
