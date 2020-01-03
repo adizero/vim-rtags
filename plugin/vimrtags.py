@@ -29,7 +29,7 @@ def run_rc_command(arguments, content = None):
     encoding = 'utf-8'
     out = None
     err = None
-    if sys.version_info.major == 3 and sys.version_info.minor >= 5:
+    if sys.version_info[0] == 3 and sys.version_info[1] >= 5:
         r = subprocess.run(
             cmdline.split(),
             input = content.encode(encoding),
@@ -42,7 +42,7 @@ def run_rc_command(arguments, content = None):
         if not err is None:
             err = err.decode(encoding)
 
-    elif sys.version_info.major == 3 and sys.version_info.minor < 5:
+    elif sys.version_info[0] == 3 and sys.version_info[1] < 5:
         r = subprocess.Popen(
             cmdline.split(),
             bufsize=0,
